@@ -1,0 +1,23 @@
+#
+# Makefile 
+#
+# Type  make        to compile all the programs
+# Type  make clean  to remove the executables
+
+CC = gcc
+CFLAGS = -Wall -g
+TARGETS = fss_manager # fss_console worker
+
+all: $(TARGETS)
+
+fss_manager: fss_manager.c
+	$(CC) $(CFLAGS) -o fss_manager fss_manager.c
+
+# fss_console: fss_console.c
+# 	$(CC) $(CFLAGS) -o fss_console fss_console.c
+
+# worker: worker.c
+# 	$(CC) $(CFLAGS) -o worker worker.c
+
+clean:
+	rm -f fss_manager fss_console worker *.o fss_in fss_out manager_logfile.txt console_logfile.txt
