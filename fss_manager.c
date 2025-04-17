@@ -14,9 +14,9 @@
 
 #include <bits/getopt_core.h>
 
-
+#define READ 0
+#define WRITE 1
 #define DEFAULT_WORKER_LIMIT 5
-//should worker limit be global?
 
 #define MAX_LINE 1024
 
@@ -66,16 +66,16 @@ void queue_push(int worker_id, const char* src, const char* tgt) {
 }
 
 void queue_pop() {
-
     if (worker_queue == NULL) {
         return;
     }
-    worker_queue = worker_queue->next;
+    WorkerQueue * temp = worker_queue->next;
+    free (worker_queue);
+    worker_queue = temp;
 }
 
 
-void parse_config_file(const char* config_path) {
-    FILE* file = fopen(config_path, "r");
+void parse_config_file(FILE* file) {    //const
     if (!file) {
         perror("fopen config_file");
         exit(1);
@@ -94,16 +94,21 @@ void parse_config_file(const char* config_path) {
 
 
 int main(int argc, char* argv[]) {
-    char* log_file = NULL;
-    char* config_file = NULL;
+
+
+//clean up previous files
+
+
+    char* log_file_ = NULL;
+    char* config_file_ = NULL;
     int worker_limit = DEFAULT_WORKER_LIMIT;
 
     // Parse arguments
     int opt;
     while ((opt = getopt(argc, argv, "l:c:n:")) != -1) {
         switch (opt) {
-            case 'l': log_file = optarg; break;
-            case 'c': config_file = optarg; break;
+            case 'l': log_file_ = optarg; break;
+            case 'c': config_file_ = optarg; break;
             case 'n': worker_limit = atoi(optarg); break;
             default:
                 fprintf(stderr, "Usage: %s -l <logfile> -c <config_file> [-n <worker_limit>]\n", argv[0]);
@@ -111,38 +116,117 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    if (!log_file || !config_file) {
-        fprintf(stderr, "Missing required arguments.\n");
+    if (!log_file_ || !config_file_) {
+        fprintf(stderr, "Input error\n");
         exit(1);
     }
+
+    //cast file pointer to FILE*
+    FILE* log_file = fopen(log_file_, "a");
+    FILE* config_file = fopen(config_file_, "r");
 
     //named pipes
     if ( mkfifo ( "fss_in" , 0666) == -1 ) {
         if ( errno != EEXIST ) {
-            perror ( " receiver : mkfifo " ) ;
+            perror ( "failed to create named pipe" ) ;
             exit (6) ;
         }
     }
 
     if ( mkfifo ( "fss_out" , 0666) == -1 ) {
         if ( errno != EEXIST ) {
-            perror ( " receiver : mkfifo " ) ;
+            perror ( "failed to create named pipe" ) ;
             exit (6) ;
         }
     }
 
     //read config file
     parse_config_file(config_file);
-    //call workers
+    
+    sync_info_mem_store* current = sync_list;
+    for (int i = 0; i < worker_limit; i++) {
+        if (current == NULL) {
+            break;
+        }
+        //must change to immidiate fork without queue
+        queue_push(i, current->source_dir, current->target_dir); // using the queue in the beginning as well
+        current = current->next; // move to the next entry  
+    }
 
 
     printf("FSS Manager started with a limit of %d workers.\n", worker_limit);
-printf("SyncList : %s, %s\n", sync_list->source_dir, sync_list->target_dir);
-    //loop to check for flags in fss_in and fork workers
+
+
+    printf("SyncList : %s, %s\n", sync_list->source_dir, sync_list->target_dir);                //to delete
+    printf("WorkerQueue : %s, %s\n", worker_queue->source_dir, worker_queue->target_dir); //to delete
+
+
+    int fd_in = open("fss_in", O_RDONLY);
+    if (fd_in < 0) {
+        perror("failed to open fss_in");
+        fclose(log_file);
+        exit(1);
+    }
+
+    int fd_out = open("fss_out", O_WRONLY);
+    if (fd_out < 0) {
+        perror("failed to open fss_out");
+        fclose(log_file);
+        close(fd_in);
+        exit(1);
+    }
+
+    char input[MAX_LINE];
+    char response[MAX_LINE];
+
+//TESTTTTTTTTTTTTTT
+
     while (1) {
-        break;
+        ssize_t bytes = read(fd_in, input, sizeof(input) - 1);
+        if (bytes > 0) {
+            input[bytes] = '\0';
+            printf("MANAGER received input %s\n", input);  // Parse and handle here
+        }
+
+
+        snprintf(response, sizeof(response), "all good\n"); //test
+
+        if (write(fd_out, response, strlen(response)) < 0) {
+            perror("MANAGER failed to write to fss_out");
+            break;
+        }
 
     }
+
+
+    //loop to check for flags in fss_in and fork workers
+    while (1) {
+break;
+        //if there is a worker process in the queue
+
+        int pipeW[2];
+        if (pipe(pipeW) == -1) {
+            perror("pipe");
+            exit(1);
+        }
+        
+        pid_t pid = fork();
+        if (pid == -1) {
+            perror("fork");
+            exit(1);
+        } else if (pid == 0) { // child process
+            
+//close read
+//use open
+
+        } else if (pid > 0){ // parent process
+
+
+        }
+break;
+    }
+
+//wait for the child process to finish
 
     return 0;
 }

@@ -6,15 +6,15 @@
 
 CC = gcc
 CFLAGS = -Wall -g
-TARGETS = fss_manager # fss_console worker
+TARGETS = fss_manager fss_console #worker
 
 all: $(TARGETS)
 
 fss_manager: fss_manager.c
 	$(CC) $(CFLAGS) -o fss_manager fss_manager.c
 
-# fss_console: fss_console.c
-# 	$(CC) $(CFLAGS) -o fss_console fss_console.c
+fss_console: fss_console.c
+	$(CC) $(CFLAGS) -o fss_console fss_console.c
 
 # worker: worker.c
 # 	$(CC) $(CFLAGS) -o worker worker.c
