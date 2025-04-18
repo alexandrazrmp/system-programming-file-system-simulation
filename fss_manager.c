@@ -11,67 +11,19 @@
 #include <sys/time.h>
 #include <errno.h>
 #include <signal.h>
-
+#include <time.h>
 #include <bits/getopt_core.h>
+
+#include "List.h"
+#include "Queue.h"
 
 #define DEFAULT_WORKER_LIMIT 5
 
 #define MAX_LINE 1024
 
-//linked list to store sync info
-typedef struct sync_info_mem_store_struct {
-    char source_dir[PATH_MAX];
-    char target_dir[PATH_MAX];
-    int status;
-    time_t last_sync_time;
-    int active;
-    int error_count;
-    struct sync_info_mem_store_struct* next;
-} sync_info_mem_store;
-
 sync_info_mem_store* sync_list = NULL;
 
-typedef struct WorkerQueue {        // to fix
-    int worker_id;
-    char source_dir[PATH_MAX];
-    char target_dir[PATH_MAX];
-    struct WorkerQueue* next;
-} WorkerQueue;
-
 WorkerQueue* worker_queue = NULL;
-
-
-//add entry to linked list
-void add_sync_entry(const char* src, const char* tgt) {
-    sync_info_mem_store* entry = malloc(sizeof(sync_info_mem_store));
-    strcpy(entry->source_dir, src);
-    strcpy(entry->target_dir, tgt);
-    entry->last_sync_time = 0;
-    entry->active = 0;
-    entry->error_count = 0;
-    entry->next = sync_list;
-    sync_list = entry;
-}
-
-
-void queue_push(int worker_id, const char* src, const char* tgt) {
-    WorkerQueue* new_worker = malloc(sizeof(WorkerQueue));
-    new_worker->worker_id = worker_id;
-    strcpy(new_worker->source_dir, src);
-    strcpy(new_worker->target_dir, tgt);
-    new_worker->next = worker_queue;
-    worker_queue = new_worker;
-}
-
-void queue_pop() {
-    if (worker_queue == NULL) {
-        return;
-    }
-    WorkerQueue * temp = worker_queue->next;
-    free (worker_queue);
-    worker_queue = temp;
-}
-
 
 void parse_config_file(FILE* file) {    //const
     if (!file) {
@@ -83,7 +35,7 @@ void parse_config_file(FILE* file) {    //const
     while (fgets(line, sizeof(line), file)) {
         char src[PATH_MAX], tgt[PATH_MAX];
         if (sscanf(line, " ( %[^,] , %[^)] ) ", src, tgt)== 2) {
-            add_sync_entry(src, tgt);
+            add_sync_entry(sync_list, src, tgt);
         }
     }
 
@@ -147,7 +99,7 @@ int main(int argc, char* argv[]) {
             break;
         }
         //must change to immidiate fork without queue
-        queue_push(i, current->source_dir, current->target_dir); // using the queue in the beginning as well
+        queue_push(worker_queue, i, current->source_dir, current->target_dir); // using the queue in the beginning as well
         current = current->next; // move to the next entry  
     }
 
@@ -155,8 +107,8 @@ int main(int argc, char* argv[]) {
     printf("FSS Manager started with a limit of %d workers.\n", worker_limit);
 
 
-    printf("SyncList : %s, %s\n", sync_list->source_dir, sync_list->target_dir);                //to delete
-    printf("WorkerQueue : %s, %s\n", worker_queue->source_dir, worker_queue->target_dir); //to delete
+    // printf("SyncList : %s, %s\n", sync_list->source_dir, sync_list->target_dir);                //to delete
+    // printf("WorkerQueue : %s, %s\n", worker_queue->source_dir, worker_queue->target_dir); //to delete
 
 
     int fd_in = open("fss_in", O_RDONLY);
@@ -182,7 +134,6 @@ int main(int argc, char* argv[]) {
         ssize_t bytes = read(fd_in, input, sizeof(input) - 1);
         if (bytes > 0) {
             input[bytes] = '\0';
-
         }
         else if (bytes == 0) {
             printf("MANAGER got no instruction\n");
@@ -198,25 +149,71 @@ int main(int argc, char* argv[]) {
         arg1 = strtok(NULL, " ");
         arg2 = strtok(NULL, " ");
         if (strcmp(instruction, "shutdown") == 0) {
-
             printf("MANAGER received shutdown instruction\n");
-            //handle shutdown
+            //handle shutdown (wait for all workers to finish, also those in queue)
             //shutdown();
 
+            //write to log file
+            time_t now = time(NULL);
+            struct tm *t = localtime(&now);
+            char timebuf[64];
+            strftime(timebuf, sizeof(timebuf), "[%Y-%m-%d %H:%M:%S]", t);   //get the corerct time and format
+        
+            fprintf(log_file, "%s Command shutdown", timebuf);   //write to log file
+
             break;
-        } else if (strcmp(instruction, "sync") == 0) {
+        } else if (strcmp(instruction, "sync") == 0) { //use a worker to sync source directory arg1 to target directory
+            //find target directory in sync_list
 
+            //fork and exec a worker process to sync source to target if we have not reached the limit
 
+            //if the limit is reached, add to queue
+
+            //write to log file
+            time_t now = time(NULL);
+            struct tm *t = localtime(&now);
+            char timebuf[64];
+            strftime(timebuf, sizeof(timebuf), "[%Y-%m-%d %H:%M:%S]", t);   //get the corerct time and format
+        
+            fprintf(log_file, "%s Command sync %s\n", timebuf, arg1);   //write to log file
+            fflush(log_file); // flush to ensure it's written immediately
         } else if (strcmp(instruction, "cancel") == 0) {
 
+            //remove the entry from the sync_list and free the memory (maintain it in the queue)
+
+
             //write to log file
+            time_t now = time(NULL);
+            struct tm *t = localtime(&now);
+            char timebuf[64];
+            strftime(timebuf, sizeof(timebuf), "[%Y-%m-%d %H:%M:%S]", t);   //get the corerct time and format
+        
+            fprintf(log_file, "%s Command cancel %s\n", timebuf, arg1);   //write to log file
+            fflush(log_file); // flush to ensure it's written immediately
+
         } else if (strcmp(instruction, "status") == 0) {
 
+            //check the status of the sync_list and print it to the console
+
             //write to log file
+
+            time_t now = time(NULL);
+            struct tm *t = localtime(&now);
+            char timebuf[64];
+            strftime(timebuf, sizeof(timebuf), "[%Y-%m-%d %H:%M:%S]", t);   //get the corerct time and format
+        
+            fprintf(log_file, "%s Command status %s\n", timebuf, arg1);   //write to log file
+            fflush(log_file); // flush to ensure it's written immediately
         } else if (strcmp(instruction, "add") == 0) {
-
+            //add the entry to the sync_list (source and target directories)
             //write to log file
-
+            time_t now = time(NULL);
+            struct tm *t = localtime(&now);
+            char timebuf[64];
+            strftime(timebuf, sizeof(timebuf), "[%Y-%m-%d %H:%M:%S]", t);   //get the corerct time and format
+        
+            fprintf(log_file, "%s Command sync %s %s\n", timebuf, arg1, arg2);   //write to log file
+            fflush(log_file); // flush to ensure it's written immediately
         }
 
 
@@ -229,9 +226,21 @@ int main(int argc, char* argv[]) {
 
     }
 
+    close(fd_in);
+    close(fd_out);
+    fclose(log_file);
 
+    //clean up
+    while (worker_queue != NULL) {
+        queue_pop(worker_queue);
+        //handle sync
+    }
+    while (sync_list != NULL) {
+        delete_sync_entry(sync_list, sync_list->source_dir);
+    }
 
-//wait for the child process to finish
+    //wait for all child processes to finish
+
 
     return 0;
 }

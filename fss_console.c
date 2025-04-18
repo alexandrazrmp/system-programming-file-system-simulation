@@ -14,8 +14,6 @@
 #include <bits/getopt_core.h>
 #include <time.h>
 
-
-
 #define MAX_LINE 1024
 
 int main(int argc, char *argv[]) {
@@ -60,6 +58,11 @@ int main(int argc, char *argv[]) {
             perror("Failed to read user input");
             break;
         }
+
+        //keep a copy of input so that it can be passed on through the pipe 
+        char copy[MAX_LINE];
+        strcpy(copy, input);
+
         //turn new line to null terminator
         input[strcspn(input, "\n")] = '\0';
 
@@ -93,9 +96,7 @@ int main(int argc, char *argv[]) {
             char timebuf[64];
             strftime(timebuf, sizeof(timebuf), "[%Y-%m-%d %H:%M:%S]", t);   //get the corerct time and format
                     
-            fprintf(log_file, "%s Command sync", timebuf);   //write to log file
-            fprintf(log_file, " %s", arg1);
-            fprintf(log_file, "\n");
+            fprintf(log_file, "%s Command sync %s\n", timebuf, arg1);   //write to log file
                     
             fflush(log_file); // flush to ensure it's written immediately
             //use pipe to send sync instruction
@@ -155,7 +156,7 @@ int main(int argc, char *argv[]) {
         }
 
         //write to pipe
-        if (write(fd_in, input, strlen(input)) < 0) {
+        if (write(fd_in, copy, strlen(copy)) < 0) {
             perror("CONSOLE failed to write to fss_in");
             break;
         }
