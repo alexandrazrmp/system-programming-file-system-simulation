@@ -12,10 +12,10 @@
 #include <errno.h>
 #include <signal.h>
 #include <bits/getopt_core.h>
+#include <time.h>
 
 
-#define READ 0
-#define WRITE 1
+
 #define MAX_LINE 1024
 
 int main(int argc, char *argv[]) {
@@ -55,19 +55,106 @@ int main(int argc, char *argv[]) {
 
     while (1) {
         printf("Insert instruction:\n");
-        fflush(stdout);
-
-        if (!fgets(input, sizeof(input), stdin)) break;
-
-        input[strcspn(input, "\n")] = '\0'; // Turn newline into null terminator
-        if (strcmp(input, "exit") == 0) {
-
-//hadle manager and workers
-
-            printf("Exiting console.\n");
+        fflush(stdout); //print immediately
+        if (!fgets(input, sizeof(input), stdin)) {
+            perror("Failed to read user input");
             break;
         }
+        //turn new line to null terminator
+        input[strcspn(input, "\n")] = '\0';
 
+        char * instruction, *arg1, *arg2;
+        instruction = strtok(input, " ");
+        arg1 = strtok(NULL, " ");
+        arg2 = strtok(NULL, " ");
+        if (strcmp(instruction, "shutdown") == 0) {
+            if (arg1 != NULL) {
+                fprintf(stderr, "CONSOLE received invalid shutdown instruction\n");
+                continue;
+            }
+            //write to log file
+            time_t now = time(NULL);
+            struct tm *t = localtime(&now);
+            char timebuf[64];
+            strftime(timebuf, sizeof(timebuf), "[%Y-%m-%d %H:%M:%S]", t);   //get the corerct time and format
+        
+            fprintf(log_file, "%s Command shutdown", timebuf);   //write to log file
+
+            //handle shutdown here using pipe
+            break;
+        } else if (strcmp(instruction, "sync") == 0) {
+            if (arg1 == NULL || arg2 != NULL) {
+                fprintf(stderr, "CONSOLE received invalid instruction\n");
+                continue;
+            }
+            //write to log file
+            time_t now = time(NULL);
+            struct tm *t = localtime(&now);
+            char timebuf[64];
+            strftime(timebuf, sizeof(timebuf), "[%Y-%m-%d %H:%M:%S]", t);   //get the corerct time and format
+                    
+            fprintf(log_file, "%s Command sync", timebuf);   //write to log file
+            fprintf(log_file, " %s", arg1);
+            fprintf(log_file, "\n");
+                    
+            fflush(log_file); // flush to ensure it's written immediately
+            //use pipe to send sync instruction
+        } else if (strcmp(instruction, "cancel") == 0) {
+            if (arg1 == NULL || arg2 != NULL) {
+                fprintf(stderr, "CONSOLE received invalid instruction\n");
+                continue;
+            }
+            //write to log file
+            time_t now = time(NULL);
+            struct tm *t = localtime(&now);
+            char timebuf[64];
+            strftime(timebuf, sizeof(timebuf), "[%Y-%m-%d %H:%M:%S]", t);   //get the corerct time and format
+                    
+            fprintf(log_file, "%s Command cancel", timebuf);   //write to log file
+            fprintf(log_file, " %s", arg1);
+            fprintf(log_file, "\n");
+                    
+            fflush(log_file); // flush to ensure it's written immediately
+        } else if (strcmp(instruction, "status") == 0) {
+            if (arg1 == NULL || arg2 != NULL) {
+                fprintf(stderr, "CONSOLE received invalid instruction\n");
+                continue;
+            }
+            //write to log file
+            time_t now = time(NULL);
+            struct tm *t = localtime(&now);
+            char timebuf[64];
+            strftime(timebuf, sizeof(timebuf), "[%Y-%m-%d %H:%M:%S]", t);   //get the corerct time and format
+                    
+            fprintf(log_file, "%s Command status", timebuf);   //write to log file
+            fprintf(log_file, " %s", arg1);
+            fprintf(log_file, "\n");
+                    
+            fflush(log_file); // flush to ensure it's written immediately
+        } else if (strcmp(instruction, "add") == 0) {
+            if (arg1 == NULL || arg2 == NULL) {
+                fprintf(stderr, "CONSOLE received invalid instruction\n");
+                continue;
+            }
+            //write to log file
+            time_t now = time(NULL);
+            struct tm *t = localtime(&now);
+            char timebuf[64];
+            strftime(timebuf, sizeof(timebuf), "[%Y-%m-%d %H:%M:%S]", t);   //get the corerct time and format
+                    
+            fprintf(log_file, "%s Command add", timebuf);   //write to log file
+            fprintf(log_file, " %s", arg1);
+            fprintf(log_file, " %s", arg2);
+            fprintf(log_file, "\n");
+                    
+            fflush(log_file); // flush to ensure it's written immediately
+
+        } else {
+            fprintf(stderr, "CONSOLE received invalid instruction\n");
+            continue;
+        }
+
+        //write to pipe
         if (write(fd_in, input, strlen(input)) < 0) {
             perror("CONSOLE failed to write to fss_in");
             break;

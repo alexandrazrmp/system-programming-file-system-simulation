@@ -14,8 +14,6 @@
 
 #include <bits/getopt_core.h>
 
-#define READ 0
-#define WRITE 1
 #define DEFAULT_WORKER_LIMIT 5
 
 #define MAX_LINE 1024
@@ -111,7 +109,7 @@ int main(int argc, char* argv[]) {
             case 'c': config_file_ = optarg; break;
             case 'n': worker_limit = atoi(optarg); break;
             default:
-                fprintf(stderr, "Usage: %s -l <logfile> -c <config_file> [-n <worker_limit>]\n", argv[0]);
+                fprintf(stderr, "Please give input in the form ./fss_manager -l <logfile> -c <config_file> [-n <worker_limit>]\n");
                 exit(1);
         }
     }
@@ -179,13 +177,46 @@ int main(int argc, char* argv[]) {
     char input[MAX_LINE];
     char response[MAX_LINE];
 
-//TESTTTTTTTTTTTTTT
 
     while (1) {
         ssize_t bytes = read(fd_in, input, sizeof(input) - 1);
         if (bytes > 0) {
             input[bytes] = '\0';
-            printf("MANAGER received input %s\n", input);  // Parse and handle here
+
+        }
+        else if (bytes == 0) {
+            printf("MANAGER got no instruction\n");
+            break;
+        } else {
+            perror("MANAGER failed to read from fss_in");
+            break;
+        }
+
+        //handle input assuming it is always valid as it is from the console
+        char * instruction, *arg1, *arg2;
+        instruction = strtok(input, " ");
+        arg1 = strtok(NULL, " ");
+        arg2 = strtok(NULL, " ");
+        if (strcmp(instruction, "shutdown") == 0) {
+
+            printf("MANAGER received shutdown instruction\n");
+            //handle shutdown
+            //shutdown();
+
+            break;
+        } else if (strcmp(instruction, "sync") == 0) {
+
+
+        } else if (strcmp(instruction, "cancel") == 0) {
+
+            //write to log file
+        } else if (strcmp(instruction, "status") == 0) {
+
+            //write to log file
+        } else if (strcmp(instruction, "add") == 0) {
+
+            //write to log file
+
         }
 
 
@@ -199,32 +230,6 @@ int main(int argc, char* argv[]) {
     }
 
 
-    //loop to check for flags in fss_in and fork workers
-    while (1) {
-break;
-        //if there is a worker process in the queue
-
-        int pipeW[2];
-        if (pipe(pipeW) == -1) {
-            perror("pipe");
-            exit(1);
-        }
-        
-        pid_t pid = fork();
-        if (pid == -1) {
-            perror("fork");
-            exit(1);
-        } else if (pid == 0) { // child process
-            
-//close read
-//use open
-
-        } else if (pid > 0){ // parent process
-
-
-        }
-break;
-    }
 
 //wait for the child process to finish
 
