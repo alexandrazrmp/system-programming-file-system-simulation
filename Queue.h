@@ -26,5 +26,5 @@ typedef struct WorkerQueue {        // to fix
 
 
 
-void queue_push(WorkerQueue *worker_queue, int worker_id, const char* src, const char* tgt);
+void queue_push(WorkerQueue *worker_queue, const char* src, const char* tgt);
 void queue_pop(WorkerQueue *worker_queue) ;

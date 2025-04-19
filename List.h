@@ -29,10 +29,10 @@ typedef struct sync_info_mem_store_struct {
 } sync_info_mem_store;
 
 //add entry to linked list
-void add_sync_entry(sync_info_mem_store* sync_list, const char* src, const char* tgt) ;
+void add_sync_entry(sync_info_mem_store** sync_list, const char* src, const char* tgt) ;
 
 //check if entry exists in linked list
 sync_info_mem_store* exists_sync_entry(sync_info_mem_store* sync_list, const char* src, const char* tgt) ;
 
 //delete entry from linked list using source directory
-void delete_sync_entry(sync_info_mem_store* sync_list, const char* src);
+void delete_sync_entry(sync_info_mem_store** sync_list, const char* src);

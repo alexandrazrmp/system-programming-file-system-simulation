@@ -18,24 +18,33 @@
 
 #define MAX_LINE 1024
 
-void worker(const char* src, const char* tgt, const char* filename, const char* op) {
+int main(int argc, char* argv[]) {  //assuming the worker is called by fss_manager (correctly)
+    char* src = argv[1];
+    char* tgt = argv[2];
+    char* filename = argv[3];
+    char* operation = argv[4];
 
-    int src_ = open(src, O_RDONLY);
-    if (src_ < 0) {
-        perror("failed to open source file");
-        return;
+    printf("Worker running: src=%s tgt=%s\n", src, tgt);
+    fflush(stdout);
+
+    if (strcmp(operation, "ADDED") == 0) {
+        //new pair added to the list
+        //sync(src, tgt);
+    } else if (strcmp(operation, "FULL") == 0){ 
+        //full sync
+        //sync(src, tgt);
+    } else if (strcmp(operation, "DELETED") == 0) {
+        //delete the entry from the list
+        //delete_sync_entry(src, tgt);
+    } else if (strcmp(operation, "MODIFIED") == 0) {
+        //modify the entry in the list
+        //modify_sync_entry(src, tgt);
     }
-    int tgt_ = open(tgt, O_WRONLY | O_CREAT | O_TRUNC, 0644);
-    if (tgt_ < 0) {
-        perror("failed to open target file");
-        close(src_);
-        return;
-    }
-    char buffer[MAX_LINE];
-    ssize_t bytes;
 
 
 
-    return;
 
+
+    
+    return 0;
 }

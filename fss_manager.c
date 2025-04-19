@@ -30,16 +30,38 @@ void parse_config_file(FILE* file) {    //const
         perror("fopen config_file");
         exit(1);
     }
-
     char line[MAX_LINE];
     while (fgets(line, sizeof(line), file)) {
         char src[PATH_MAX], tgt[PATH_MAX];
         if (sscanf(line, " ( %[^,] , %[^)] ) ", src, tgt)== 2) {
-            add_sync_entry(sync_list, src, tgt);
+            add_sync_entry(&sync_list, src, tgt);
         }
     }
 
     fclose(file);
+}
+
+
+void start_worker(const char* src, const char* tgt, const char* filename, const char* operation) {
+    //create a pipe for each worker
+    int pipefd[2];
+    if (pipe(pipefd) == -1) {
+        perror("pipe creation failed");
+        return;
+    }
+
+
+    pid_t pid = fork();
+    if (pid == 0) { // child process
+        char* args[] = {"./worker", src, tgt, filename, operation, NULL};
+        execv(args[0], args);
+    } else if (pid < 0) {
+        perror("fork failed");
+        close(pipefd[0]);
+        close(pipefd[1]);
+    } else { // parent process
+        printf("Started worker with PID %d for %s to %s\n", pid, src, tgt);
+    }
 }
 
 
@@ -59,7 +81,7 @@ int main(int argc, char* argv[]) {
         switch (opt) {
             case 'l': log_file_ = optarg; break;
             case 'c': config_file_ = optarg; break;
-            case 'n': worker_limit = atoi(optarg); break;
+            case 'n': if (atoi(optarg)>0) worker_limit = atoi(optarg); break;
             default:
                 fprintf(stderr, "Please give input in the form ./fss_manager -l <logfile> -c <config_file> [-n <worker_limit>]\n");
                 exit(1);
@@ -90,25 +112,29 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    //read config file
+    printf("FSS Manager started with a limit of %d workers.\n", worker_limit);
+
+    //read config file and add entries to sync_list
     parse_config_file(config_file);
-    
+
+    printf("Sync list %s %s.\n", sync_list->source_dir, sync_list->target_dir);             //TO DELETE
+
+    //do the initial sync
     sync_info_mem_store* current = sync_list;
     for (int i = 0; i < worker_limit; i++) {
         if (current == NULL) {
             break;
         }
-        //must change to immidiate fork without queue
-        queue_push(worker_queue, i, current->source_dir, current->target_dir); // using the queue in the beginning as well
+        printf("what is wrong\n");
+        start_worker(current->source_dir, current->target_dir, "ALL", "ADDED"); //start worker process
         current = current->next; // move to the next entry  
     }
 
-
-    printf("FSS Manager started with a limit of %d workers.\n", worker_limit);
-
-
-    // printf("SyncList : %s, %s\n", sync_list->source_dir, sync_list->target_dir);                //to delete
-    // printf("WorkerQueue : %s, %s\n", worker_queue->source_dir, worker_queue->target_dir); //to delete
+    //if there are more entries, add them to the queue
+    while (current != NULL) {
+        queue_push(worker_queue, current->source_dir, current->target_dir); //add to queue
+        current = current->next; // move to the next entry  
+    }
 
 
     int fd_in = open("fss_in", O_RDONLY);

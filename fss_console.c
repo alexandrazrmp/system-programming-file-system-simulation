@@ -30,9 +30,6 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-//write to console log file
-
-
     int fd_in = open("fss_in", O_WRONLY);
     if (fd_in < 0) {
         perror("failed to open fss_in");
