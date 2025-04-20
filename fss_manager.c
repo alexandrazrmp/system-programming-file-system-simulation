@@ -21,6 +21,9 @@
 
 #define MAX_LINE 1024
 
+int *worker_array; //will be initialized later when worker limit is set
+int worker_count = 0; //number of workers currently running
+
 sync_info_mem_store* sync_list = NULL;
 
 WorkerQueue* worker_queue = NULL;
@@ -53,7 +56,9 @@ void start_worker(const char* src, const char* tgt, const char* filename, const 
 
     pid_t pid = fork();
     if (pid == 0) { // child process
-        char* args[] = {"./worker", src, tgt, filename, operation, NULL};
+        worker_count++;
+        worker_array[worker_count] = getpid(); //add to worker array
+        char* const args[] = {"./worker", (char *)src, (char *)tgt, (char *)filename, (char *)operation, "ALL"};
         execv(args[0], args);
     } else if (pid < 0) {
         perror("fork failed");
@@ -87,6 +92,8 @@ int main(int argc, char* argv[]) {
                 exit(1);
         }
     }
+
+    worker_array = malloc(sizeof(int) * worker_limit); //initialize worker array
 
     if (!log_file_ || !config_file_) {
         fprintf(stderr, "Input error\n");
@@ -262,7 +269,7 @@ int main(int argc, char* argv[]) {
         //handle sync
     }
     while (sync_list != NULL) {
-        delete_sync_entry(sync_list, sync_list->source_dir);
+        delete_sync_entry(&sync_list, sync_list->source_dir);
     }
 
     //wait for all child processes to finish
