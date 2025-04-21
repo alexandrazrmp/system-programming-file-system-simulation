@@ -131,7 +131,7 @@ int main(int argc, char* argv[]) {
         if (current == NULL) {
             break;
         }
-        start_worker(current->source_dir, current->target_dir, "ALL", "ADDED"); //start worker process
+        start_worker(current->source_dir, current->target_dir, "ALL", "FULL"); //start worker process
         current = current->next; // move to the next entry  
     }
 
@@ -162,7 +162,7 @@ int main(int argc, char* argv[]) {
 
 
     while (1) {
-break;                                                                                  //to delete
+        break;
         ssize_t bytes = read(fd_in, input, sizeof(input) - 1);
         if (bytes > 0) {
             input[bytes] = '\0';
@@ -211,7 +211,7 @@ break;                                                                          
             fflush(log_file); // flush to ensure it's written immediately
         } else if (strcmp(instruction, "cancel") == 0) {
 
-            //remove the entry from the sync_list and free the memory (maintain it in the queue)
+            //mark the entry from the sync_list as not active but maintain it in the queue
 
 
             //write to log file
@@ -270,6 +270,9 @@ break;                                                                          
     while (sync_list != NULL) {
         delete_sync_entry(&sync_list, sync_list->source_dir);
     }
+
+    printf("so far so good\n");
+    fflush(stdout); //flush to ensure it's written immediately
 
     //wait for all child processes to finish
 

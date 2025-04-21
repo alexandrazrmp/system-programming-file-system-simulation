@@ -43,3 +43,10 @@ fss_in named pipe.
 
 
 worker:
+An executrable that is being executed through fork() in fss_manager as its child process.
+Its arguements deter the sync operation it must do:
+if there is a specific filename where the operation must be done then there is two options:
+    (1)delete the file through delete_file()
+    (2)write or overwrite the file if it is new or if it is just modified (same operation) 
+or else if there is no specific filename then that arguement should be "ALL" and the two operaions above (1) and (2) are done to all files
+from the source directory
