@@ -66,6 +66,21 @@ void start_worker(const char* src, const char* tgt, const char* filename, const 
     } else { // parent process
         printf("Started worker with PID %d for %s to %s\n", pid, src, tgt);
     }
+
+    //get worker exec report
+    //read from the pipe
+    char buffer[MAX_LINE]; 
+    ssize_t bytes_read = read(pipefd[0], buffer, sizeof(buffer) - 1);
+    if (bytes_read > 0) {
+        buffer[bytes_read] = '\0'; // null-terminate the string
+//write to log file
+    } else if (bytes_read == 0) {
+        printf("No data read from pipe\n");
+    } else {
+        perror("read failed");
+    }
+    close(pipefd[0]); // close read end of the pipe in parent
+    close(pipefd[1]); // close write end of the pipe in parent
 }
 
 
