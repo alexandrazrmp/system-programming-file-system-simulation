@@ -22,34 +22,60 @@
 void sync_all(const char* src, const char* tgt) {
     DIR * src_dir = opendir(src);
     DIR * tgt_dir = opendir(tgt);
-    if (src_dir == NULL) return;
-    struct dirent *file = readdir(src_dir);
-    while (file != NULL) {
+    if (src_dir == NULL) return;    //source directory must exist
+    struct dirent *file;
+    char full_src[PATH_MAX];
+    char full_target[PATH_MAX];
+
+    while ((file = readdir(src_dir)) != NULL) {   //while there are files in the source directory
+        if (file->d_ino == 0) continue; //skip empty entries
         //copy the file from src to tgt
-        int fd_src = open(src, O_RDONLY);
+
+        //create full path for source and target files 
+        snprintf(full_src, sizeof(full_src), "%s/%s", src, file->d_name);
+        snprintf(full_target, sizeof(full_target), "%s/%s", tgt, file->d_name); //name same as src
+
+        int fd_src = open(full_src, O_RDONLY);
         if (fd_src == -1) {
             //mention error////////////
-            file = readdir(src_dir);
             continue;
         }
-        int fd_tgt = open(tgt, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+        int fd_tgt = open(full_target, O_WRONLY | O_CREAT | O_TRUNC, 0644); //open target file for overwriting or create for writing
         if (fd_tgt == -1) {
             perror("open(tgt)");
             close(fd_src);
-            file = readdir(src_dir);
+
             continue;
         }
 
+        //do the actual copying
 
+        ssize_t bytes_written;
+        ssize_t bytes_read;
+        char buffer[4096];
+        while (1) {     //use a buffer of 4096 bytes to read from source file nd write to target file
+            bytes_read = read(fd_src, buffer, sizeof(buffer));
+            if (bytes_read == 0) break; //EOF, done reading
 
-        file = readdir(src_dir);
+            if (bytes_read == -1) {
+                //mention error
+                break;
+            }
 
+            bytes_written = write(fd_tgt, buffer, bytes_read);
+            if (bytes_written != bytes_read) {
+                //mention error
+                break;
+            }
+
+        }
+        close(fd_src);
+        close(fd_tgt);
+        //move on to the next file
     }
     closedir(src_dir);
     closedir(tgt_dir);
 }
-
-
 
 
 

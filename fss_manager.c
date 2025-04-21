@@ -46,13 +46,12 @@ void parse_config_file(FILE* file) {    //const
 
 
 void start_worker(const char* src, const char* tgt, const char* filename, const char* operation) {
-    //create a pipe for each worker
+    //create read-write named pipe for each worker
     int pipefd[2];
     if (pipe(pipefd) == -1) {
         perror("pipe creation failed");
         return;
     }
-
 
     pid_t pid = fork();
     if (pid == 0) { // child process
@@ -132,7 +131,6 @@ int main(int argc, char* argv[]) {
         if (current == NULL) {
             break;
         }
-        printf("what is wrong\n");
         start_worker(current->source_dir, current->target_dir, "ALL", "ADDED"); //start worker process
         current = current->next; // move to the next entry  
     }
@@ -164,6 +162,7 @@ int main(int argc, char* argv[]) {
 
 
     while (1) {
+break;                                                                                  //to delete
         ssize_t bytes = read(fd_in, input, sizeof(input) - 1);
         if (bytes > 0) {
             input[bytes] = '\0';
@@ -245,7 +244,7 @@ int main(int argc, char* argv[]) {
             char timebuf[64];
             strftime(timebuf, sizeof(timebuf), "[%Y-%m-%d %H:%M:%S]", t);   //get the corerct time and format
         
-            fprintf(log_file, "%s Command sync %s %s\n", timebuf, arg1, arg2);   //write to log file
+            fprintf(log_file, "%s Command add %s %s\n", timebuf, arg1, arg2);   //write to log file
             fflush(log_file); // flush to ensure it's written immediately
         }
 
@@ -274,6 +273,12 @@ int main(int argc, char* argv[]) {
 
     //wait for all child processes to finish
 
+    for (int i = 0; i < worker_count; i++) {
+        waitpid(worker_array[i], NULL, 0);
+    }
+    free(worker_array);
+    unlink("fss_in");
+    unlink("fss_out");
 
     return 0;
 }

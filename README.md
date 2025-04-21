@@ -1,0 +1,45 @@
+Compilation instructions
+
+compile all using make
+
+run manager using 
+./fss_manager -l <manager_logfile> -c <config_file> -n <worker_limit>
+(worker limit is optional)
+
+run console using
+./fss_console -l <console-logfile>
+
+if you wish to run worker use 
+./worker src_dir tgt_dir testfile.txt FULL
+(used for testing)
+
+run bash script using
+./fss_script.sh -p <path> -c <command>
+
+
+Technical Report  0
+
+Implemented a File Synchronization System using 3 components(executables): fss_manager, fss_console and worker.
+
+fss_manager: 
+Takes input given by user as arguements in main function and initializes worker limit, its logfile and the configuration file which has pairs of directories (source and target) that are meant to be synchronized at all times. 
+Cleans up any previous pipes that might be open.
+It then creates two named pipes (fss_in and fss_out) for communtication with the console executable and parses the configuration file to create initial logs to sync_info_mem_store list which is used to keep sync-pair information.
+List sync_info_mem_store and Queue WorkerQueue are initialized globally inside fss_manager and are implemented in List.c and Queue.c.
+WorkerQueue is used to store pending worker processes that cannot start because worker limit is reached.
+
+
+
+fss_console:
+The console executable has a quite simple implementation. It takes a logfile as std input through main function arguements where it stores all
+instructions it gets.
+Instructions are given to the console in the form :
+add <source> <target>, status <directory>, cancel <source>, sync <directory>, shutdown
+inside a while(1) loop that only breaks when shutdown instruction is given or some unexpected error occures
+(invalid input is simply ignored)
+It parses the instruction, making sure it is in valid form and writes to its logfile accordingly, before sending it to the manager through the
+fss_in named pipe.
+
+
+
+worker:
