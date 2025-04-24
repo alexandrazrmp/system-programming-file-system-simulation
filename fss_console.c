@@ -30,7 +30,10 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
+    printf("Opening fss_in for writing...\n");
     int fd_in = open("fss_in", O_WRONLY);
+    printf("fss_in opened!\n");
+    
     if (fd_in < 0) {
         perror("failed to open fss_in");
         fclose(log_file);

@@ -77,6 +77,7 @@ void sync_file(const char* src, const char* tgt, const char* filename) {
     }
     close(fd_src);
     close(fd_tgt);
+    return;
 }
 
 
@@ -92,16 +93,18 @@ void op_all(const char* src, const char* tgt,  const char* op) {
         //copy the file from src to tgt
 
         char* filename = file->d_name;
+        if (strcmp(filename, ".") == 0 || strcmp(filename, "..") == 0) continue;
+
         if (strcmp(op, "DELETED") == 0) 
             delete_file(src, tgt, filename); //delete the file from the target directory
         else if (strcmp(op, "ADDED") == 0 || strcmp(op, "MODIFIED") == 0 || strcmp(op, "FULL") == 0)
             sync_file(src, tgt, filename); //sync the file from the source directory to the target directory
         else {}//mention error
-
         //move on to the next file
     }
     closedir(src_dir);
     closedir(tgt_dir);
+    return;
 }
 
 
@@ -130,6 +133,5 @@ int main(int argc, char* argv[]) {  //assuming the worker is called by fss_manag
         }
     }
 
-    
     return 0;
 }

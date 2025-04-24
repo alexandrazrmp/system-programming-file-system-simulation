@@ -10,7 +10,7 @@ run console using
 ./fss_console -l <console-logfile>
 
 if you wish to run worker use 
-./worker src_dir tgt_dir testfile.txt FULL
+./worker src_dir tgt_dir ALL FULL
 (used for testing)
 
 run bash script using

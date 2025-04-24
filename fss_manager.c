@@ -37,7 +37,7 @@ void parse_config_file(FILE* file) {    //const
     while (fgets(line, sizeof(line), file)) {
         char src[PATH_MAX], tgt[PATH_MAX];
         if (sscanf(line, " ( %[^,] , %[^)] ) ", src, tgt)== 2) {
-            add_sync_entry(&sync_list, src, tgt);
+            sync_list = add_sync_entry(&sync_list, src, tgt);
         }
     }
 
@@ -102,7 +102,7 @@ int main(int argc, char* argv[]) {
             case 'c': config_file_ = optarg; break;
             case 'n': if (atoi(optarg)>0) worker_limit = atoi(optarg); break;
             default:
-                fprintf(stderr, "Please give input in the form ./fss_manager -l <logfile> -c <config_file> [-n <worker_limit>]\n");
+                fprintf(stderr, "Please give input in the form ./fss_manager -l <logfile> -c <config_file> -n <worker_limit>\n");
                 exit(1);
         }
     }
@@ -138,17 +138,20 @@ int main(int argc, char* argv[]) {
     //read config file and add entries to sync_list
     parse_config_file(config_file);
 
-    printf("Sync list %s %s.\n", sync_list->source_dir, sync_list->target_dir);             //TO DELETE
-
     //do the initial sync
     sync_info_mem_store* current = sync_list;
     for (int i = 0; i < worker_limit; i++) {
         if (current == NULL) {
             break;
         }
+        
+printf("\n%d\n\n", i);          //TO Deleteeeeeee
         start_worker(current->source_dir, current->target_dir, "ALL", "FULL"); //start worker process
         current = current->next; // move to the next entry  
     }
+
+printf("\nhereeeeeeee\n\n");          //TO DELETEEEEEEEEEEEEE
+
 
     //if there are more entries, add them to the queue
     while (current != NULL) {
@@ -156,13 +159,14 @@ int main(int argc, char* argv[]) {
         current = current->next; // move to the next entry  
     }
 
-
+//open pipes
     int fd_in = open("fss_in", O_RDONLY);
     if (fd_in < 0) {
         perror("failed to open fss_in");
         fclose(log_file);
         exit(1);
     }
+
 
     int fd_out = open("fss_out", O_WRONLY);
     if (fd_out < 0) {
@@ -177,10 +181,10 @@ int main(int argc, char* argv[]) {
 
 
     while (1) {
-        break;
         ssize_t bytes = read(fd_in, input, sizeof(input) - 1);
         if (bytes > 0) {
             input[bytes] = '\0';
+printf("MANAGER received instruction: %s\n", input);
         }
         else if (bytes == 0) {
             printf("MANAGER got no instruction\n");
@@ -210,11 +214,16 @@ int main(int argc, char* argv[]) {
 
             break;
         } else if (strcmp(instruction, "sync") == 0) { //use a worker to sync source directory arg1 to target directory
-            //find target directory in sync_list
-
-            //fork and exec a worker process to sync source to target if we have not reached the limit
-
-            //if the limit is reached, add to queue
+            sync_info_mem_store *cur;
+            if ((cur = exists_sync_entry(sync_list, arg1, NULL)) != NULL) {
+                if (worker_limit > worker_count) {
+                    start_worker(arg1, cur->target_dir, "ALL", "FULL");
+                    cur->active = 1; //mark as active
+                } else {
+                    //add to queue
+                    queue_push(worker_queue, arg1, cur->target_dir);
+                }
+            }
 
             //write to log file
             time_t now = time(NULL);
@@ -225,10 +234,12 @@ int main(int argc, char* argv[]) {
             fprintf(log_file, "%s Command sync %s\n", timebuf, arg1);   //write to log file
             fflush(log_file); // flush to ensure it's written immediately
         } else if (strcmp(instruction, "cancel") == 0) {
-
             //mark the entry from the sync_list as not active but maintain it in the queue
-
-
+            sync_info_mem_store *cur;
+            if ((cur = exists_sync_entry(sync_list, arg1, NULL)) != NULL) {
+                cur->active = 0; //mark as not active
+            }
+            
             //write to log file
             time_t now = time(NULL);
             struct tm *t = localtime(&now);
@@ -253,6 +264,12 @@ int main(int argc, char* argv[]) {
             fflush(log_file); // flush to ensure it's written immediately
         } else if (strcmp(instruction, "add") == 0) {
             //add the entry to the sync_list (source and target directories)
+            if (exists_sync_entry(sync_list, arg1, arg2) == NULL) {
+                sync_list = add_sync_entry(&sync_list, arg1, arg2);
+            } else {
+                fprintf(stderr, "Entry already exists\n");
+            }
+
             //write to log file
             time_t now = time(NULL);
             struct tm *t = localtime(&now);
