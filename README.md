@@ -11,6 +11,7 @@ run console using
 
 if you wish to run worker use 
 ./worker src_dir tgt_dir ALL FULL
+(./worker /home/users/sdi2200048/ergasies/SysPro/hw1-alexandrazrmp/source_dir /home/users/sdi2200048/ergasies/SysPro/hw1-alexandrazrmp/target_dir ALL FULL)
 (used for testing)
 
 run bash script using

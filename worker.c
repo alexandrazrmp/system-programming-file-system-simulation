@@ -18,7 +18,14 @@
 
 
 #define MAX_LINE 1024
-
+#define REPORT_SIZE 4000
+char report[REPORT_SIZE]; //buffer for report
+int files_copied = 0; //number of files copied
+int files_deleted = 0; //number of files deleted
+int files_skipped = 0; //number of files that had no operation done to them
+int errors = 0; //number of errors
+char error_messages[40000]; //error message
+//errors are stored in a buffer and are separated by newlines
 
 void delete_file(const char* src, const char* tgt, const char* filename) {
     char full_src[PATH_MAX];
@@ -29,8 +36,14 @@ void delete_file(const char* src, const char* tgt, const char* filename) {
     snprintf(full_target, sizeof(full_target), "%s/%s", tgt, filename); //name same as src
 
     if (unlink(full_target) == -1) {
-        //mention error
+        errors++;
+        //write error message to error buffer (append it)
+        snprintf(error_messages + strlen(error_messages), sizeof(error_messages) - strlen(error_messages), "-file %s: %s\n", full_target, strerror(errno));
         return;
+    } else {
+        files_deleted++;
+        //write to report
+        snprintf(report + strlen(report), sizeof(report) - strlen(report), "deleted %s\n", full_target);
     }
 }
 
@@ -44,12 +57,17 @@ void sync_file(const char* src, const char* tgt, const char* filename) {
 
     int fd_src = open(full_src, O_RDONLY);
     if (fd_src == -1) {
-        //mention error
+        errors++;
+        //write error message to error buffer (append it)
+        snprintf(error_messages + strlen(error_messages), sizeof(error_messages) - strlen(error_messages), "-file %s: %s\n", full_src, strerror(errno));
         return;
     }
     int fd_tgt = open(full_target, O_WRONLY | O_CREAT | O_TRUNC, 0644); //open target file for overwriting or create for writing
     if (fd_tgt == -1) {
         //mention error
+        errors++;
+        //write error message to error buffer (append it)
+        snprintf(error_messages + strlen(error_messages), sizeof(error_messages) - strlen(error_messages), "-file %s: %s\n", full_target, strerror(errno));
         close(fd_src);
         return;
     }
@@ -65,14 +83,24 @@ void sync_file(const char* src, const char* tgt, const char* filename) {
 
         if (bytes_read == -1) {
             //mention error
+            errors++;
+            //write error message to error buffer (append it)
+            snprintf(error_messages + strlen(error_messages), sizeof(error_messages) - strlen(error_messages), "-file %s: %s\n", full_src, strerror(errno));
             break;
         }
 
         bytes_written = write(fd_tgt, buffer, bytes_read);
         if (bytes_written != bytes_read) {
             //mention error
+            errors++;
+            //write error message to error buffer (append it)
+            snprintf(error_messages + strlen(error_messages), sizeof(error_messages) - strlen(error_messages), "-file %s: %s\n", full_target, strerror(errno));
             break;
         }
+        //all good, increment the number of files copied
+        files_copied++;
+        //write to report
+        snprintf(report + strlen(report), sizeof(report) - strlen(report), "copied %s\n", full_target);
 
     }
     close(fd_src);
@@ -132,6 +160,19 @@ int main(int argc, char* argv[]) {  //assuming the worker is called by fss_manag
             sync_file(src, tgt, filename); //sync the file from the source directory to the target directory
         }
     }
+
+    //print to stdout that will go to the fss_manager
+    printf("EXEC_REPORT_START\n");
+
+    if (errors == 0) printf("STATUS: SUCCESS\n");
+    else printf("STATUS: PARTIAL\n");
+
+    printf("DETAILS: %d files copied, %d skipped\n", files_copied, files_skipped);
+
+    if (errors > 0) printf("ERRORS:\n%s", error_messages);
+    
+    printf("EXEC_REPORT_END\n");
+    fflush(stdout);
 
     return 0;
 }

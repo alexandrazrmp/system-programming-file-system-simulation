@@ -35,11 +35,13 @@ void parse_config_file(FILE* file) {    //const
     }
     char line[MAX_LINE];
     while (fgets(line, sizeof(line), file)) {
-        char src[PATH_MAX], tgt[PATH_MAX];
-        if (sscanf(line, " ( %[^,] , %[^)] ) ", src, tgt)== 2) {
+        char src[PATH_MAX] = {0}, tgt[PATH_MAX] = {0};
+    
+        if (sscanf(line, " ( %[^,] , %[^)] ) ", src, tgt) == 2) {
             sync_list = add_sync_entry(&sync_list, src, tgt);
         }
     }
+    
 
     fclose(file);
 }
@@ -55,32 +57,43 @@ void start_worker(const char* src, const char* tgt, const char* filename, const 
 
     pid_t pid = fork();
     if (pid == 0) { // child process
-        worker_count++;
-        worker_array[worker_count] = getpid(); //add to worker array
-        char* const args[] = {"./worker", (char *)src, (char *)tgt, (char *)filename, (char *)operation, "ALL"};
+
+        close(pipefd[0]); // close read end of the pipe
+        dup2(pipefd[1], STDOUT_FILENO); // redirect stdout to the write end of the pipe
+        close(pipefd[1]); // close write end of the pipe
+
+        char* const args[] = {"./worker", (char *)src, (char *)tgt, (char *)filename, (char *)operation, "ALL", NULL};
         execv(args[0], args);
+
+        perror("execv failed");
+        exit(1);
+
     } else if (pid < 0) {
         perror("fork failed");
         close(pipefd[0]);
         close(pipefd[1]);
     } else { // parent process
         printf("Started worker with PID %d for %s to %s\n", pid, src, tgt);
-    }
+        worker_array[worker_count++] = pid; //add to worker array
+        close(pipefd[1]);
 
-    //get worker exec report
-    //read from the pipe
-    char buffer[MAX_LINE]; 
-    ssize_t bytes_read = read(pipefd[0], buffer, sizeof(buffer) - 1);
-    if (bytes_read > 0) {
-        buffer[bytes_read] = '\0'; // null-terminate the string
-//write to log file
-    } else if (bytes_read == 0) {
-        printf("No data read from pipe\n");
-    } else {
-        perror("read failed");
+        //read from the pipe
+        char buffer[MAX_LINE];
+        ssize_t bytes_read = read(pipefd[0], buffer, sizeof(buffer) - 1);
+        if (bytes_read > 0) {
+            buffer[bytes_read] = '\0'; // null-terminate the string
+            printf("%s", buffer); // print the report as is
+        } else if (bytes_read == 0) {
+            printf("No bytes in the pipe\n");
+        } else {
+            perror("read failed");
+        }
+        close(pipefd[0]); // close read
+
     }
-    close(pipefd[0]); // close read end of the pipe in parent
-    close(pipefd[1]); // close write end of the pipe in parent
+    //wait for the child process to finish
+
+    return;
 }
 
 
@@ -141,18 +154,13 @@ int main(int argc, char* argv[]) {
     //do the initial sync
     sync_info_mem_store* current = sync_list;
     for (int i = 0; i < worker_limit; i++) {
-        if (current == NULL) {
-            break;
-        }
+        if (current == NULL) break;
         
-printf("\n%d\n\n", i);          //TO Deleteeeeeee
         start_worker(current->source_dir, current->target_dir, "ALL", "FULL"); //start worker process
-        current = current->next; // move to the next entry  
+        current = current->next; // move to the next entry
     }
 
-printf("\nhereeeeeeee\n\n");          //TO DELETEEEEEEEEEEEEE
-
-
+// printf("hereeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee\n");
     //if there are more entries, add them to the queue
     while (current != NULL) {
         queue_push(worker_queue, current->source_dir, current->target_dir); //add to queue
