@@ -33,21 +33,26 @@ sync_info_mem_store* add_sync_entry(sync_info_mem_store** sync_list, const char*
 //check if entry exists in linked list
 //has dual purpose, if target dir is NULL, it will return the entry with the source dir
 //if target dir is not NULL, it will return the entry with the source dir and target dir if the match is corerct, else NULL
+
 sync_info_mem_store* exists_sync_entry(sync_info_mem_store* sync_list, const char* src, const char* tgt) {
     sync_info_mem_store* current = sync_list;
-    while (current!= NULL) {
+    while (current != NULL) {
+printf("\n%s\n", current->source_dir);
         if (strcmp(current->source_dir, src) == 0) {
-            if (current->target_dir == NULL) {
-                return current; //entry exists and we must return target dir
+            if (tgt == NULL) {
+                return current; //entry exists, return target dir that is missing
             }
-            if (strcmp(current->target_dir, tgt) == 0) {
-                return current; //entry exists
-            } else return NULL;       //error code, cannot have same source and different target
+            //if target directory is given and pair matches, return the entry
+            if (tgt != NULL && strcmp(current->target_dir, tgt) == 0) {
+                return current;
+            } 
+            return NULL;  //error code, cannot have same source and different target
         }
         current = current->next;
     }
-    return NULL;   //does not exist
+    return NULL;   // Does not exist
 }
+
 
 //delete entry from linked list using source directory
 void delete_sync_entry(sync_info_mem_store** sync_list, const char* src) {

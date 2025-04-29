@@ -1,27 +1,4 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <string.h>
-#include <limits.h>
-#include <sys/types.h>
-#include <linux/limits.h>
-#include <sys/wait.h>
-#include <sys/time.h>
-#include <errno.h>
-#include <signal.h>
-#include <time.h>
-#include <bits/getopt_core.h>
-#include <sys/inotify.h>
-#include <sys/select.h>
-
-#include "List.h"
-#include "Queue.h"
-
-#define DEFAULT_WORKER_LIMIT 5
-
-#define MAX_LINE 1024
+#include "fss_manager.h"
 
 int *worker_array; //will be initialized later when worker limit is set
 int worker_count = 0; //number of workers currently running
@@ -170,11 +147,9 @@ void start_worker(const char* src, const char* tgt, const char* filename, const 
             perror("read failed");
         }
         close(pipefd[0]); // close read
+        cur->status = NOT_SYNCING; //mark as not syncing
 
     }
-    waitpid(pid, NULL, 0); // wait for the child process to finish
-    cur->status = NOT_SYNCING; //mark as not syncing
-
 
     return;
 }
@@ -271,37 +246,40 @@ int main(int argc, char* argv[]) {
     char input[MAX_LINE];
     char response[MAX_LINE];
 
+    setup_inotify();
+
+    struct sigaction sa;
+    sa.sa_handler = sigchld_handler;
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = SA_RESTART | SA_NOCLDSTOP;
+    sigaction(SIGCHLD, &sa, NULL);
+
 
     while (1) {
-        //if a file is modified, start a worker
 
-
-        //if a file is deleted, start a worker
-
-
-        //if a file is added, start a worker
-
-
-
-
-
-/*        
+      
         fd_set read_fds;
         FD_ZERO(&read_fds);
         FD_SET(fd_in, &read_fds);
         FD_SET(inotify_fd, &read_fds);
     
         int max_fd = (fd_in > inotify_fd) ? fd_in : inotify_fd;
-        if (select(max_fd + 1, &read_fds, NULL, NULL, NULL) < 0) {
-            perror("select");
+        int ret = select(max_fd + 1, &read_fds, NULL, NULL, NULL);
+        if (ret < 0) {
+            if (errno == EINTR) {
+                continue; // Interrupted by signal (like SIGCHLD), safe to restart loop
+            }
+            perror("select error");
             break;
         }
+        
     
         if (FD_ISSET(inotify_fd, &read_fds)) {
             handle_inotify_events();
         }
     
-        if (FD_ISSET(fd_in, &read_fds)) {
+        if (FD_ISSET(fd_in, &read_fds)) { //console input
+            //read from the pipe
 
             ssize_t bytes = read(fd_in, input, sizeof(input) - 1);
             if (bytes > 0) {
@@ -327,6 +305,12 @@ int main(int argc, char* argv[]) {
             instruction = strtok(input, " ");
             arg1 = strtok(NULL, " ");
             arg2 = strtok(NULL, " ");
+
+            //remove newline character if present
+            instruction[strcspn(instruction, "\n")] = '\0';
+            if (arg1 != NULL) arg1[strcspn(arg1, "\n")] = '\0';
+            if (arg2 != NULL) arg2[strcspn(arg2, "\n")] = '\0';
+
             if (strcmp(instruction, "shutdown") == 0) {
                 //print messages
                 printf("%s Shutting down manager...\n", timebuf);
@@ -342,8 +326,11 @@ int main(int argc, char* argv[]) {
                 
                 fprintf(log_file, "%s Command sync %s\n", timebuf, arg1);   //write to log file
                 fflush(log_file); // flush to ensure it's written immediately
-                sync_info_mem_store *cur;
-                if ((cur = exists_sync_entry(sync_list, arg1, NULL)) != NULL && cur->status != SYNCING) {
+                printf("here\n");
+                sync_info_mem_store *cur = exists_sync_entry(sync_list, arg1, NULL);
+                printf("here2 \n");
+                printf("here2 %s\n", cur->target_dir);
+                if (cur != NULL && cur->status != SYNCING) {
                     printf("%s Syncing directory: %s -> %s\n", timebuf, arg1, cur->target_dir);
                     if (worker_limit > worker_count) {
                         cur->active = 1; //mark as active
@@ -355,9 +342,9 @@ int main(int argc, char* argv[]) {
                     } else {
                         worker_queue = queue_push(worker_queue, arg1, cur->target_dir, "ALL", "FULL"); //add to queue
                     }
-                }else {
+                }else if (cur->status == SYNCING){
                     printf("%s  Sync already in progress: %s\n", timebuf, arg1);
-                }
+                } else printf("%s Directory not monitored: %s\n", timebuf, arg1);
     
             } else if (strcmp(instruction, "cancel") == 0) {
                 //mark the entry from the sync_list as not active but maintain it in the queue
@@ -420,10 +407,15 @@ int main(int argc, char* argv[]) {
         }
     
         // Handle SIGCHLD
-        if (child_exited) {
-            handle_exited_children();
+        if (child_exited && worker_queue != NULL) {
+            // Start the next worker from the queue
+            WorkerQueue* last = queue_pop(&worker_queue);
+
+            start_worker(last->source_dir, last->target_dir, last->filename, last->operation);
+
             child_exited = 0;
         }
+
     }
 
 
@@ -433,8 +425,6 @@ int main(int argc, char* argv[]) {
     close(fd_out);
     fclose(log_file);
 
-
-*/
 
 
 

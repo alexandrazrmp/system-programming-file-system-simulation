@@ -16,7 +16,6 @@
 
 #define SYNCING 1
 #define NOT_SYNCING 0
-#define TO_SYNC 2
 
 #define MAX_LINE 1024
 
