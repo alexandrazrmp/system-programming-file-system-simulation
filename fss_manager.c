@@ -77,11 +77,37 @@ void sigchld_handler(int sig) {
                 break;
             }
         }
+
+
+        // find sync entry and mark as done/error
+        sync_info_mem_store *cur = sync_list;
+        while (cur) {
+            if (cur->worker_pid == pid) {
+                if (WIFEXITED(status)) {
+                    int exit_code = WEXITSTATUS(status);
+                    if (exit_code == 0) {
+                        printf("Worker %d completed successfully.\n", pid);
+                    } else {
+                        printf("Worker %d exited with error code %d.\n", pid, exit_code);
+                        cur->error_count ++;
+                    }
+                } else if (WIFSIGNALED(status)) {
+                    printf("Worker %d was killed by signal %d.\n", pid, WTERMSIG(status));
+                    cur->error_count ++;
+                }
+                cur->worker_pid = -1;
+                break;
+            }
+            cur = cur->next;
+        }
     }
+
     child_exited = 1;
 }
 
-void parse_config_file(FILE* file) {    //const
+
+
+void parse_config_file(FILE* file) {
     if (!file) {
         perror("fopen config_file");
         exit(1);
@@ -97,7 +123,6 @@ void parse_config_file(FILE* file) {    //const
         }
     }
     
-
     fclose(file);
 }
 
@@ -111,7 +136,6 @@ void start_worker(const char* src, const char* tgt, const char* filename, const 
     }
 
     sync_info_mem_store* cur = exists_sync_entry(sync_list, src, tgt);
-    cur->status = SYNCING; //mark as syncing
 
     pid_t pid = fork();
     if (pid == 0) { // child process
@@ -133,6 +157,7 @@ void start_worker(const char* src, const char* tgt, const char* filename, const 
     } else { // parent process
         printf("Started worker with PID %d for %s to %s\n", pid, src, tgt);
         worker_array[worker_count++] = pid; //add to worker array
+        if (cur) cur->worker_pid = pid; //latest worker pid
         close(pipefd[1]);
 
         //read from the pipe
@@ -147,7 +172,6 @@ void start_worker(const char* src, const char* tgt, const char* filename, const 
             perror("read failed");
         }
         close(pipefd[0]); // close read
-        cur->status = NOT_SYNCING; //mark as not syncing
 
     }
 
@@ -160,7 +184,7 @@ int main(int argc, char* argv[]) {
 
 //clean up previous files
 
-
+    setup_inotify();
     char* log_file_ = NULL;
     char* config_file_ = NULL;
     worker_limit = DEFAULT_WORKER_LIMIT;
@@ -246,7 +270,6 @@ int main(int argc, char* argv[]) {
     char input[MAX_LINE];
     char response[MAX_LINE];
 
-    setup_inotify();
 
     struct sigaction sa;
     sa.sa_handler = sigchld_handler;
@@ -257,7 +280,6 @@ int main(int argc, char* argv[]) {
 
     while (1) {
 
-      
         fd_set read_fds;
         FD_ZERO(&read_fds);
         FD_SET(fd_in, &read_fds);
@@ -267,7 +289,7 @@ int main(int argc, char* argv[]) {
         int ret = select(max_fd + 1, &read_fds, NULL, NULL, NULL);
         if (ret < 0) {
             if (errno == EINTR) {
-                continue; // Interrupted by signal (like SIGCHLD), safe to restart loop
+                continue; //interrupted by signal (like SIGCHLD), safe to restart loop
             }
             perror("select error");
             break;
@@ -326,34 +348,24 @@ int main(int argc, char* argv[]) {
                 
                 fprintf(log_file, "%s Command sync %s\n", timebuf, arg1);   //write to log file
                 fflush(log_file); // flush to ensure it's written immediately
-                printf("here\n");
                 sync_info_mem_store *cur = exists_sync_entry(sync_list, arg1, NULL);
-                printf("here2 \n");
-                printf("here2 %s\n", cur->target_dir);
-                if (cur != NULL && cur->status != SYNCING) {
+                if (cur != NULL) {
                     printf("%s Syncing directory: %s -> %s\n", timebuf, arg1, cur->target_dir);
                     if (worker_limit > worker_count) {
                         cur->active = 1; //mark as active
                         cur->last_sync_time = time(NULL); //update last sync time
-                        cur->status = SYNCING; //mark as syncing
                         cur->error_count = 0; //reset error count
                         //start worker process
                         start_worker(arg1, cur->target_dir, "ALL", "FULL");
                     } else {
                         worker_queue = queue_push(worker_queue, arg1, cur->target_dir, "ALL", "FULL"); //add to queue
                     }
-                }else if (cur->status == SYNCING){
-                    printf("%s  Sync already in progress: %s\n", timebuf, arg1);
                 } else printf("%s Directory not monitored: %s\n", timebuf, arg1);
     
             } else if (strcmp(instruction, "cancel") == 0) {
                 //mark the entry from the sync_list as not active but maintain it in the queue
                 sync_info_mem_store *cur = exists_sync_entry(sync_list, arg1, NULL);
                 if (cur && cur->active) {
-                    if (cur->status == SYNCING) {
-                        //wait for the worker to finish
-                        //then cancel
-                    }
                     cur->active = 0;    //mark as not active
                     printf("%s Monitoring stopped for %s\n", timebuf, arg1);
                     fprintf(log_file, "%s Monitoring stopped for %s\n", timebuf, arg1);
@@ -405,46 +417,23 @@ int main(int argc, char* argv[]) {
             }
 
         }
-    
         // Handle SIGCHLD
         if (child_exited && worker_queue != NULL) {
             // Start the next worker from the queue
-            WorkerQueue* last = queue_pop(&worker_queue);
-
-            start_worker(last->source_dir, last->target_dir, last->filename, last->operation);
-
-            child_exited = 0;
+            WorkerQueue* next_job = queue_pop(&worker_queue);
+            if (next_job) {
+                start_worker(next_job->source_dir, next_job->target_dir, next_job->filename, next_job->operation);
+                free(next_job);
+            }
+            child_exited = 0; 
         }
 
     }
 
 
-
-
     close(fd_in);
     close(fd_out);
     fclose(log_file);
-
-
-
-
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    //print  queue
-    WorkerQueue* cur = worker_queue;
-    while (cur != NULL) {
-        printf("Queue: %s -> %s\n", cur->source_dir, cur->target_dir);
-        cur = cur->next;
-    }
-
-    //print sync_list
-    sync_info_mem_store* cur2 = sync_list;
-    while (cur2 != NULL) {
-        printf("Sync List: %s -> %s\n", cur2->source_dir, cur2->target_dir);
-        cur2 = cur2->next;
-    }
-    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-
 
             //handle shutdown wait for all workers to finish
     for (int i = 0; i < worker_count; i++) {
@@ -457,7 +446,6 @@ int main(int argc, char* argv[]) {
         if (cur != NULL) {
             free(cur);
         }
-        //handle sync
     }
 
     sync_info_mem_store *entry = sync_list;
@@ -473,9 +461,7 @@ int main(int argc, char* argv[]) {
     while (sync_list != NULL) {
         delete_sync_entry(&sync_list, sync_list->source_dir);
     }
-
-
-    fflush(stdout); //flush to ensure it's written immediately
+    free(worker_array); //free the worker array
 
     //wait for all child processes to finish
 

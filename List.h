@@ -23,8 +23,8 @@
 typedef struct sync_info_mem_store_struct {
     char source_dir[PATH_MAX];
     char target_dir[PATH_MAX];
-    int status;
     time_t last_sync_time;
+    pid_t worker_pid;  //PID of last worker
     int active;
     int error_count;
     int wd; //watch descriptor for inotify

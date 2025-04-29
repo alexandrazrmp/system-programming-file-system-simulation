@@ -16,7 +16,6 @@ sync_info_mem_store* add_sync_entry(sync_info_mem_store** sync_list, const char*
     new_entry->active = 0;
     new_entry->error_count = 0;
     new_entry->next = NULL;
-    new_entry->status = 0;
 
     //find the end of the list and add the new entry (or place it in the beginning if the list is empty)
 
@@ -37,7 +36,6 @@ sync_info_mem_store* add_sync_entry(sync_info_mem_store** sync_list, const char*
 sync_info_mem_store* exists_sync_entry(sync_info_mem_store* sync_list, const char* src, const char* tgt) {
     sync_info_mem_store* current = sync_list;
     while (current != NULL) {
-printf("\n%s\n", current->source_dir);
         if (strcmp(current->source_dir, src) == 0) {
             if (tgt == NULL) {
                 return current; //entry exists, return target dir that is missing
