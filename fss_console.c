@@ -81,7 +81,7 @@ int main(int argc, char *argv[]) {
             char timebuf[64];
             strftime(timebuf, sizeof(timebuf), "[%Y-%m-%d %H:%M:%S]", t);   //get the corerct time and format
         
-            fprintf(log_file, "%s Command shutdown", timebuf);   //write to log file
+            fprintf(log_file, "%s Command shutdown\n", timebuf);   //write to log file
 
             //handle shutdown here using pipe
             break;
@@ -112,8 +112,7 @@ int main(int argc, char *argv[]) {
             strftime(timebuf, sizeof(timebuf), "[%Y-%m-%d %H:%M:%S]", t);   //get the corerct time and format
                     
             fprintf(log_file, "%s Command cancel", timebuf);   //write to log file
-            fprintf(log_file, " %s", arg1);
-            fprintf(log_file, "\n");
+            fprintf(log_file, " %s\n", arg1);
                     
             fflush(log_file); // flush to ensure it's written immediately
         } else if (strcmp(instruction, "status") == 0) {
@@ -128,8 +127,7 @@ int main(int argc, char *argv[]) {
             strftime(timebuf, sizeof(timebuf), "[%Y-%m-%d %H:%M:%S]", t);   //get the corerct time and format
                     
             fprintf(log_file, "%s Command status", timebuf);   //write to log file
-            fprintf(log_file, " %s", arg1);
-            fprintf(log_file, "\n");
+            fprintf(log_file, " %s\n", arg1);
                     
             fflush(log_file); // flush to ensure it's written immediately
         } else if (strcmp(instruction, "add") == 0) {
@@ -144,10 +142,7 @@ int main(int argc, char *argv[]) {
             strftime(timebuf, sizeof(timebuf), "[%Y-%m-%d %H:%M:%S]", t);   //get the corerct time and format
                     
             fprintf(log_file, "%s Command add", timebuf);   //write to log file
-            fprintf(log_file, " %s", arg1);
-            fprintf(log_file, " %s", arg2);
-            fprintf(log_file, "\n");
-                    
+            fprintf(log_file, " %s %s\n", arg1, arg2);
             fflush(log_file); // flush to ensure it's written immediately
 
         } else {

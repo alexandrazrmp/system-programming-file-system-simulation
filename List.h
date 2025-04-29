@@ -14,6 +14,9 @@
 #include <bits/getopt_core.h>
 #include <time.h>
 
+#define SYNCING 1
+#define NOT_SYNCING 0
+#define TO_SYNC 2
 
 #define MAX_LINE 1024
 
@@ -25,6 +28,7 @@ typedef struct sync_info_mem_store_struct {
     time_t last_sync_time;
     int active;
     int error_count;
+    int wd; //watch descriptor for inotify
     struct sync_info_mem_store_struct* next;
 } sync_info_mem_store;
 

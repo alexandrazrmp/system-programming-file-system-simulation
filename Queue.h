@@ -17,14 +17,15 @@
 #define MAX_LINE 1024
 
 
-typedef struct WorkerQueue {        // to fix
-    int worker_id;
+typedef struct WorkerQueue {
     char source_dir[PATH_MAX];
     char target_dir[PATH_MAX];
+    char filename[NAME_MAX];
+    char operation[32];
     struct WorkerQueue* next;
 } WorkerQueue;
 
 
-
-void queue_push(WorkerQueue *worker_queue, const char* src, const char* tgt);
-void queue_pop(WorkerQueue *worker_queue) ;
+WorkerQueue* queue_create() ;
+WorkerQueue* queue_push(WorkerQueue *worker_queue, const char* src, const char* tgt, const char* filename, const char* operation) ;
+WorkerQueue* queue_pop(WorkerQueue **worker_queue) ;

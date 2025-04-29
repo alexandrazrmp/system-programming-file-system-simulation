@@ -20,10 +20,10 @@
 #define MAX_LINE 1024
 #define REPORT_SIZE 4000
 char report[REPORT_SIZE]; //buffer for report
-int files_copied = 0; //number of files copied
-int files_deleted = 0; //number of files deleted
-int files_skipped = 0; //number of files that had no operation done to them
-int errors = 0; //number of errors
+int files_copied; //number of files copied
+int files_deleted; //number of files deleted
+int files_skipped; //number of files that had no operation done to them
+int errors; //number of errors
 char error_messages[40000]; //error message
 //errors are stored in a buffer and are separated by newlines
 
@@ -143,6 +143,13 @@ int main(int argc, char* argv[]) {  //assuming the worker is called by fss_manag
     char* filename = argv[3];
     char* operation = argv[4];
 
+    errors = 0;
+    files_copied = 0;
+    files_deleted = 0;
+    files_skipped = 0;
+    memset(report, 0, sizeof(report)); //clear the report buffer
+    memset(error_messages, 0, sizeof(error_messages)); //clear the error message buffer
+
     printf("Worker running: src=%s tgt=%s\n", src, tgt);
     fflush(stdout);
 
@@ -153,7 +160,8 @@ int main(int argc, char* argv[]) {  //assuming the worker is called by fss_manag
         if (strcmp(operation, "ADDED") == 0) {
             sync_file(src, tgt, filename); //sync the file from the source directory to the target directory
         } else if (strcmp(operation, "FULL") == 0){ 
-            //mention error
+            errors++;
+            snprintf(error_messages + strlen(error_messages), sizeof(error_messages) - strlen(error_messages), "-file %s: %s\n", filename, "FULL operation not supported on not ALL files");
         } else if (strcmp(operation, "DELETED") == 0) {
             delete_file(src, tgt, filename); //delete the file from the target directory
         } else if (strcmp(operation, "MODIFIED") == 0) {

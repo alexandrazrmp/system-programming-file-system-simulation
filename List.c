@@ -16,6 +16,7 @@ sync_info_mem_store* add_sync_entry(sync_info_mem_store** sync_list, const char*
     new_entry->active = 0;
     new_entry->error_count = 0;
     new_entry->next = NULL;
+    new_entry->status = 0;
 
     //find the end of the list and add the new entry (or place it in the beginning if the list is empty)
 
