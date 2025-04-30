@@ -51,6 +51,8 @@ int main(int argc, char *argv[]) {
     char input[MAX_LINE];
     char response[MAX_LINE];
 
+    int break_flag = 0; //flag to break the loop
+
     while (1) {
         printf("Insert instruction:\n");
         fflush(stdout); //print immediately
@@ -83,8 +85,7 @@ int main(int argc, char *argv[]) {
         
             fprintf(log_file, "%s Command shutdown\n", timebuf);   //write to log file
 
-            //handle shutdown here using pipe
-            break;
+            break_flag = 1; //set the flag to break the loop
         } else if (strcmp(instruction, "sync") == 0) {
             if (arg1 == NULL || arg2 != NULL) {
                 fprintf(stderr, "CONSOLE received invalid instruction\n");
@@ -102,7 +103,7 @@ int main(int argc, char *argv[]) {
             //use pipe to send sync instruction
         } else if (strcmp(instruction, "cancel") == 0) {
             if (arg1 == NULL || arg2 != NULL) {
-                fprintf(stderr, "CONSOLE received invalid instruction\n");
+                fprintf(stderr, "INVALID INSTRUCTION\n");
                 continue;
             }
             //write to log file
@@ -156,12 +157,10 @@ int main(int argc, char *argv[]) {
             break;
         }
 
-        // Wait and read response from manager
+        //wait and read response from manager
         ssize_t n = read(fd_out, response, sizeof(response) - 1);
-        if (n > 0) {
-            response[n] = '\0';
-            printf("CONSOLE got back response: %s\n", response);
-        }
+        if (n<=0) break;    //response must be "all good" therefore not empty
+        if (break_flag) break;
     }
 
     close(fd_in);

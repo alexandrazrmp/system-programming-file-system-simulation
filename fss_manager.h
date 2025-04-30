@@ -27,13 +27,11 @@
 
 void setup_inotify();
 
-void handle_inotify_events() ;
-
 int add_directory_watch(const char *path) ;
 
 void sigchld_handler(int sig) ;
 
-void parse_config_file(FILE* file) ;
+void parse_config_file(FILE* file, FILE* log_file) ;
 
 void start_worker(const char* src, const char* tgt, const char* filename, const char* operation) ;
 
