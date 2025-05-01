@@ -161,9 +161,6 @@ void start_worker(const char* src, const char* tgt, const char* filename, const 
 
 int main(int argc, char* argv[]) {
 
-//to do:
-//clean up previous files
-
     setup_inotify();
     char* log_file_ = NULL;
     char* config_file_ = NULL;

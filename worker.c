@@ -150,9 +150,6 @@ int main(int argc, char* argv[]) {  //assuming the worker is called by fss_manag
     memset(report, 0, sizeof(report)); //clear the report buffer
     memset(error_messages, 0, sizeof(error_messages)); //clear the error message buffer
 
-    printf("Worker running: src=%s tgt=%s\n", src, tgt);
-    fflush(stdout);
-
     if (strcmp(filename, "ALL") == 0) {
         op_all(src, tgt, operation); //sync all files in the source directory
     }
