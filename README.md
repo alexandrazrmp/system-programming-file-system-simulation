@@ -27,12 +27,13 @@ Takes input given by user as arguements in main function and initializes worker 
 directories (source and target) that are meant to be synchronized at all times. 
 It then creates two named pipes (fss_in and fss_out) for communtication with the console executable and parses the configuration file to create 
 initial logs to sync_info_mem_store list which is used to keep sync-pair information.
-Inotify is initialized and add_directory_watch() is used to associate a watch descriptor to sync_info_mem_store entries (directory pairs, but actually
-just the source dir of the pair) so that fss_manager is notified for any changes: deletion, modification or addition.
+Inotify is initialized and add_directory_watch() is used to associate a watch descriptor to sync_info_mem_store entries (directory pairs,
+but actually just the source dir of the pair) so that fss_manager is notified for any changes: deletion, modification or addition.
 List sync_info_mem_store and Queue WorkerQueue are initialized globally inside fss_manager and are implemented in List.c and Queue.c.
 WorkerQueue is used to store pending worker processes that cannot start because worker limit is reached.
 Select is used inside an endless loop to determine whether a signal has occured or input is given through fss_in by the console
-Missing requested corrrect logfile format (exec report from worker is being printed due to wrong handling of where I print to the logfile)
+Missing requested corrrect logfile format (exec report from worker is being printed to show that it is implemented but not written to the logfile
+due to wrong handling of where (in which function) I print to the logfile)
 (could change it, but I must start another project, thank you for your understanding)
 
 fss_console:
