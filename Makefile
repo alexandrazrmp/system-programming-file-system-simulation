@@ -31,4 +31,4 @@ Queue.o: Queue.c Queue.h
 	$(CC) $(CFLAGS) -c Queue.c
 
 clean:
-	rm -f fss_manager fss_console worker *.o fss_in fss_out manager_logfile.txt console_logfile.txt
+	rm -f fss_manager fss_console worker *.o fss_in fss_out np_fss_console.log np_fss_manager.log

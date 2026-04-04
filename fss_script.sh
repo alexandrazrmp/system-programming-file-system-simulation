@@ -16,7 +16,7 @@ listAll() {
     fi
 
     #grep to only get lines that start with "Added directory:" or "Syncing directory:"
-    grep "Added directory:|Syncing directory:" "$path" | while read -r line; do
+    grep -E "Added directory:|Syncing directory:" "$path" | while read -r line; do                 #JUST ADDED -E !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
         if [[ "$line" == *"Added directory:"* ]]; then
             pair="${line#*Added directory: }"  #remove Added directory:

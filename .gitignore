@@ -1,0 +1,6 @@
+*.o
+*.log
+*.xlsx
+fss_console
+fss_manager
+worker
